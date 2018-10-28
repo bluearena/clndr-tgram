@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/yanzay/tbot"
@@ -31,12 +32,6 @@ func main() {
 	var err error
 	srv, err = calendar.New(google_client)
 	checkError(err)
-
-	// checkError(err)
-	//
-	// if len(events.Items) == 0 {
-	// 	fmt.Println("No upcoming events found.")
-	// }
 
 	bot, err := tbot.NewServer(token) //create new server with /help defaulted
 	checkError(err)
@@ -65,7 +60,8 @@ func startHandler(message *tbot.Message) {
 }
 
 func CreateTaskHandler(message *tbot.Message) {
-	message.Reply("okay")
+	//TODO
+	//srv.Events.Insert(calendarId, event)
 }
 
 func DeleteTaskHandler(message *tbot.Message) {
@@ -77,25 +73,27 @@ func EditTaskHandler(message *tbot.Message) {
 }
 
 func ShowTasksHandler(message *tbot.Message) {
-	message.Reply("okay")
-
 	t := time.Now().Format(time.RFC3339)
-	events, err := srv.Events.List(calendarId).ShowDeleted(false).SingleEvents(true).TimeMin(t).MaxResults(30).Do()
+	events, err := srv.Events.List(calendarId).ShowDeleted(false).SingleEvents(true).TimeMin(t).MaxResults(20).Do()
 	checkError(err)
-	//	var formattedEvents string
+	var formattedEvents string
 
 	if len(events.Items) == 0 {
-		message.Reply("Keine anstehenden Termine")
+		message.Reply("Keine anstehenden Termine.")
 	} else {
-		message.Reply("Anstehende Termine:")
+		formattedEvents += "Die nächsten Termine (bis zu 20): \n\n"
 		for _, item := range events.Items {
 			date := item.Start.DateTime
+			log.Println(reflect.TypeOf(date))
 			if date == "" {
 				date = item.Start.Date
 			}
-
+			event_string := fmt.Sprintf("%v (%v)\n", item.Summary, date)
+			formattedEvents += "- " + event_string
 		}
 	}
+
+	message.Reply(formattedEvents)
 
 }
 
