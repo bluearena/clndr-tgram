@@ -43,6 +43,7 @@ func main() {
 	bot.HandleFunc("/add {eventstring}", CreateTaskHandler)
 	bot.HandleFunc("/delete {eventstring}", DeleteTaskHandler)
 	bot.HandleFunc("/show {number}", ShowTasksHandler)
+	bot.HandleFunc("/show", ShowTasksHandler)
 	bot.HandleFunc("/todo", TodoHandler)
 
 	log.Println("Starting Bot..")
@@ -63,7 +64,7 @@ func startHandler(message *tbot.Message) {
 
 func CreateTaskHandler(message *tbot.Message) {
 	user_input := message.Vars["eventstring"]
-	splitted_string := strings.Split(user_input, " ")
+	splitted_string := strings.Split(user_input, "; ")
 	event_name := splitted_string[0]
 	splitted_time := strings.Split(splitted_string[1], "-")
 	date := splitted_string[2]
@@ -107,12 +108,14 @@ func DeleteTaskHandler(message *tbot.Message) {
 }
 
 func ShowTasksHandler(message *tbot.Message) {
-	number_results_string := message.Vars["number"]
-	number_results, err := strconv.ParseInt(number_results_string, 10, 64)
-	checkError(err)
+	var number_results int64
+	var err error
 
 	if message.Vars["number"] == "" {
 		number_results = 100
+	} else {
+		number_results, err = strconv.ParseInt(message.Vars["number"], 10, 64)
+		checkError(err)
 	}
 
 	t := time.Now().Format(time.RFC3339)
@@ -123,7 +126,7 @@ func ShowTasksHandler(message *tbot.Message) {
 	if len(events.Items) == 0 {
 		message.Reply("Keine anstehenden Termine.")
 	} else {
-		formattedEvents += "Die nächsten " + number_results_string + " Termine: \n\n"
+		formattedEvents += "Die nächsten " + strconv.FormatInt(number_results, 10) + " Termine: \n\n"
 		for i, item := range events.Items {
 			date := item.Start.DateTime
 			parsed_time, _ := time.Parse(time.RFC3339, date)
