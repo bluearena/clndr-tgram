@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -64,13 +65,28 @@ func startHandler(message *tbot.Message) {
 
 func CreateTaskHandler(message *tbot.Message) {
 	user_input := message.Vars["eventstring"]
-	splitted_string := strings.Split(user_input, "; ")
-	event_name := splitted_string[0]
-	splitted_time := strings.Split(splitted_string[1], "-")
-	date := splitted_string[2]
 
-	parsed_stime, _ := time.Parse("15:04 02/01/2006", splitted_time[0]+" "+date)
-	parsed_etime, _ := time.Parse("15:04 02/01/2006", splitted_time[1]+" "+date)
+	//get the whole date in format dd/mm/yyyy or d/m/yyyy, dd/m/yyyy, d/m/yyyy
+	date_expr := regexp.MustCompile("(0?[1-9]|[12][0-9]|3[01])/(0?[1-9]|1[012])/((19|20)\\d\\d)")
+	date := date_expr.FindString(user_input)
+
+	//get the time in format 10:00-12:00
+	time_expr := regexp.MustCompile("([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]")
+	compl_time := time_expr.FindString(user_input)
+
+	//get the start and end time in format 10:00
+	time_slice_expr := regexp.MustCompile("([01]?[0-9]|2[0-3]):[0-5][0-9]")
+	time_slice := time_slice_expr.FindAllString(compl_time, -1)
+	stime := time_slice[0]
+	etime := time_slice[1]
+
+	//remove date and time from the user input. So we only have the name of the event left
+	//additionally trim trailing and leading spaces from the name
+	name := strings.Trim(strings.Replace(strings.Replace(user_input, compl_time, "", -1), date, "", -1), " ")
+
+	//adjust time formats to RFC3339 since the calendar API expects it in that format
+	parsed_stime, _ := time.Parse("15:04 02/01/2006", stime+" "+date)
+	parsed_etime, _ := time.Parse("15:04 02/01/2006", etime+" "+date)
 	formatted_stime := parsed_stime.Format(time.RFC3339)
 	formatted_etime := parsed_etime.Format(time.RFC3339)
 
@@ -84,10 +100,11 @@ func CreateTaskHandler(message *tbot.Message) {
 		TimeZone: "Europe/Berlin",
 	}
 
-	evt := &calendar.Event{Summary: event_name, Start: start, End: end}
+	//add the event to the calendar
+	evt := &calendar.Event{Summary: name, Start: start, End: end}
 	_, err := srv.Events.Insert(calendarId, evt).Do()
 	checkError(err)
-	reply := fmt.Sprintf("Termin %v (%v %v) hinzugefügt", event_name, date, splitted_string[1])
+	reply := fmt.Sprintf("Termin %v (%v %v) hinzugefügt", name, date, compl_time)
 	message.Reply(reply)
 }
 
