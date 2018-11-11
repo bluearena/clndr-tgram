@@ -2,3 +2,4 @@ bot_token.config
 credentials.json
 token.json
 calendar_id
+.env
